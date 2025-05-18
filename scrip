@@ -1,0 +1,300 @@
+--[[
+    Script Modificado por SC_vGatxYz
+    --------------------------------------------------------------------
+    Título: SC-Hub l Muscle Legends
+    Creador: by SC_vGatxYz
+    --------------------------------------------------------------------
+    Características:
+    - UI con navegación por pestañas ("KILLER", "KILLER 2").
+    - Auto Kill (Dirigido y Global) con Whitelist y Kill Aura (cabezas invisibles temporalmente). --- MODIFICADO ---
+    - Teletransporte, Auto Equip/Punch, Control de Animación de Puño.
+    - Anti-Knockback (V4 - BodyVelocity).
+    - Diseño compacto y con bordes estilizados.
+    - Botón de minimizar con icono "X" (azul) / "SC" (gris oscuro atractivo). --- MODIFICADO ---
+]]
+
+-- Services
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+
+-- Player
+local localPlayer = Players.LocalPlayer
+local playerGui = localPlayer:WaitForChild("PlayerGui")
+
+-- Main GUI Elements
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "MainControlScreenGui"; screenGui.ResetOnSpawn = false
+screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling; screenGui.Parent = playerGui
+
+-- Colors
+local darkBackgroundColor = Color3.fromRGB(25,28,36); local darkBlueAccentColor = Color3.fromRGB(0,100,200)
+local veryDarkBlueButtonColor = Color3.fromRGB(0,50,120); local textColor = Color3.fromRGB(230,230,230)
+local blackColor = Color3.fromRGB(0,0,0); local redColorActive = Color3.fromRGB(200,0,0)
+local greenColorActive = Color3.fromRGB(0,150,0)
+local sectionButtonSelectedColor = darkBlueAccentColor
+local sectionButtonNormalColor = veryDarkBlueButtonColor
+local auraColor = Color3.fromRGB(0, 30, 100)
+local AURA_VISUAL_MATERIAL = Enum.Material.Neon
+local buttonBorderSize = 1
+local buttonBorderColor = darkBlueAccentColor
+-- local toggleButtonMinimizedTextColor = Color3.fromRGB(100, 100, 120) -- --- ELIMINADO: Ya no se usa ---
+local minimizedButtonBackgroundColor = Color3.fromRGB(40, 45, 55) -- --- NUEVO: Gris oscuro para fondo de SC ---
+
+-- Toggle Button
+local toggleButton = Instance.new("TextButton")
+toggleButton.Name = "ToggleButton"; toggleButton.Text = "X";
+toggleButton.TextColor3 = darkBlueAccentColor -- Color inicial para "X"
+toggleButton.BackgroundColor3 = blackColor -- Fondo inicial para "X"
+toggleButton.BorderSizePixel = 2; toggleButton.BorderColor3 = darkBlueAccentColor
+toggleButton.Size = UDim2.new(0,38,0,38);
+toggleButton.Position = UDim2.new(0,10,0,10)
+toggleButton.Font = Enum.Font.GothamSemibold; toggleButton.TextScaled = true
+toggleButton.Draggable = true; toggleButton.Active = true; toggleButton.Parent = screenGui
+-- --- NUEVO: Sombra para el botón de toggle para darle profundidad ---
+local toggleButtonShadow = Instance.new("ImageLabel", toggleButton)
+toggleButtonShadow.Name = "Shadow"
+toggleButtonShadow.Image = "rbxassetid://2730916771" -- Una imagen de sombra suave (puedes cambiarla)
+toggleButtonShadow.ImageColor3 = Color3.fromRGB(0,0,0)
+toggleButtonShadow.ImageTransparency = 0.6
+toggleButtonShadow.ScaleType = Enum.ScaleType.Slice
+toggleButtonShadow.SliceCenter = Rect.new(10, 10, 118, 118) -- Ajustar según la imagen de sombra
+toggleButtonShadow.Size = UDim2.fromOffset(toggleButton.AbsoluteSize.X + 4, toggleButton.AbsoluteSize.Y + 4)
+toggleButtonShadow.Position = UDim2.fromOffset(-2, -2)
+toggleButtonShadow.ZIndex = toggleButton.ZIndex - 1
+toggleButtonShadow.BackgroundTransparency = 1
+
+
+-- Main Frame
+local mainFrame = Instance.new("Frame")
+mainFrame.Name = "MainFrame"; mainFrame.BackgroundColor3 = darkBackgroundColor; mainFrame.BorderColor3 = darkBlueAccentColor
+mainFrame.BorderSizePixel = 1; mainFrame.Size = UDim2.new(0,270,0,380)
+mainFrame.Position = UDim2.new(0.5,-135,0.5,-190); mainFrame.Draggable = true; mainFrame.Active = true; mainFrame.Visible = true; mainFrame.Parent = screenGui
+
+-- Título del Script
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Name = "TitleLabel"; titleLabel.Text = "SC-Hub l Muscle Legends"
+titleLabel.TextColor3 = textColor
+titleLabel.Font = Enum.Font.GothamBold; titleLabel.TextScaled = true; titleLabel.BackgroundTransparency = 1
+titleLabel.Size = UDim2.new(0.9,0,0.075,0); titleLabel.Position = UDim2.new(0.05,0,0.015,0);
+titleLabel.Parent = mainFrame
+
+-- Creador Label
+local creatorLabel = Instance.new("TextLabel")
+creatorLabel.Name = "CreatorLabel"; creatorLabel.Text = "by SC_vGatxYz"
+creatorLabel.TextColor3 = Color3.fromRGB(180,180,180);
+creatorLabel.Font = Enum.Font.Gotham; creatorLabel.TextScaled = true; creatorLabel.BackgroundTransparency = 1
+creatorLabel.Size = UDim2.new(0.9,0,0.045,0);
+creatorLabel.Position = UDim2.new(0.05,0, titleLabel.Position.Y.Scale + titleLabel.Size.Y.Scale - 0.01 ,0);
+creatorLabel.Parent = mainFrame
+
+-- Separador después del título y creador
+local titleSeparator = Instance.new("Frame")
+titleSeparator.Name = "TitleSeparator"; titleSeparator.BackgroundColor3 = darkBlueAccentColor; titleSeparator.BorderSizePixel = 0
+titleSeparator.Size = UDim2.new(0.9,0,0,1);
+titleSeparator.Position = UDim2.new(0.05,0, creatorLabel.Position.Y.Scale + creatorLabel.Size.Y.Scale + 0.015,0);
+titleSeparator.Parent = mainFrame
+
+-- Layout Variables para controles dentro de las secciones
+local controlHeightScale = 0.10
+local controlSpacingScale = 0.035
+local controlWidthScale = 0.9
+local controlXPosScale = 0.05
+
+-- BOTONES DE NAVEGACIÓN DE SECCIÓN
+local sectionButtonYPos = titleSeparator.Position.Y.Scale + (titleSeparator.Size.Y.Offset / mainFrame.AbsoluteSize.Y) + 0.03
+local sectionButtonHeight = 0.075
+
+local killerSectionButton = Instance.new("TextButton")
+killerSectionButton.Name = "KillerSectionButton"; killerSectionButton.Text = "KILLER"
+killerSectionButton.TextColor3 = textColor; killerSectionButton.Font = Enum.Font.GothamSemibold
+killerSectionButton.TextScaled = true; killerSectionButton.BackgroundColor3 = sectionButtonSelectedColor
+killerSectionButton.BorderSizePixel = buttonBorderSize; killerSectionButton.BorderColor3 = buttonBorderColor
+killerSectionButton.Size = UDim2.new(0.43,0,sectionButtonHeight,0)
+killerSectionButton.Position = UDim2.new(controlXPosScale,0,sectionButtonYPos,0)
+killerSectionButton.Parent = mainFrame
+
+local killer2SectionButton = Instance.new("TextButton")
+killer2SectionButton.Name = "Killer2SectionButton"; killer2SectionButton.Text = "KILLER 2"
+killer2SectionButton.TextColor3 = textColor; killer2SectionButton.Font = Enum.Font.GothamSemibold
+killer2SectionButton.TextScaled = true; killer2SectionButton.BackgroundColor3 = sectionButtonNormalColor
+killer2SectionButton.BorderSizePixel = buttonBorderSize; killer2SectionButton.BorderColor3 = buttonBorderColor
+killer2SectionButton.Size = UDim2.new(0.43,0,sectionButtonHeight,0)
+killer2SectionButton.Position = UDim2.new(controlXPosScale + 0.43 + 0.04 ,0,sectionButtonYPos,0)
+killer2SectionButton.Parent = mainFrame
+
+local sectionsContainerFrame = Instance.new("Frame")
+sectionsContainerFrame.Name = "SectionsContainerFrame"; sectionsContainerFrame.BackgroundTransparency = 1
+sectionsContainerFrame.Size = UDim2.new(1, 0, 1 - (sectionButtonYPos + sectionButtonHeight + 0.035), 0)
+sectionsContainerFrame.Position = UDim2.new(0, 0, sectionButtonYPos + sectionButtonHeight + 0.035, 0)
+sectionsContainerFrame.Parent = mainFrame
+
+-- Función para aplicar estilo común a botones de función
+local function styleFunctionButton(button)
+    button.BorderSizePixel = buttonBorderSize
+    button.BorderColor3 = buttonBorderColor
+    button.Font = Enum.Font.GothamSemibold
+    button.TextScaled = true
+end
+
+-- SECTION 1 FRAME: KILLER
+local killerSectionFrame = Instance.new("Frame")
+killerSectionFrame.Name = "KillerSectionFrame"; killerSectionFrame.BackgroundTransparency = 1
+killerSectionFrame.Size = UDim2.new(1, 0, 1, 0); killerSectionFrame.Position = UDim2.new(0, 0, 0, 0)
+killerSectionFrame.Visible = true; killerSectionFrame.Parent = sectionsContainerFrame
+local s1_controlStartY = 0.05
+
+local targetPlayerTextBox = Instance.new("TextBox")
+targetPlayerTextBox.Name = "TargetPlayerTextBox"; targetPlayerTextBox.PlaceholderText = "User1,User2,User3 (Max 3)"; targetPlayerTextBox.Text = ""
+targetPlayerTextBox.BackgroundColor3 = Color3.fromRGB(40,45,55); targetPlayerTextBox.TextColor3 = textColor; targetPlayerTextBox.Font = Enum.Font.Gotham
+targetPlayerTextBox.TextScaled = true; targetPlayerTextBox.BorderSizePixel = buttonBorderSize; targetPlayerTextBox.BorderColor3 = buttonBorderColor
+targetPlayerTextBox.Size = UDim2.new(controlWidthScale * 0.73, 0, controlHeightScale, 0)
+targetPlayerTextBox.Position = UDim2.new(controlXPosScale,0,s1_controlStartY,0); targetPlayerTextBox.ClearTextOnFocus = false; targetPlayerTextBox.Parent = killerSectionFrame
+
+local clearTargetsButton = Instance.new("TextButton")
+clearTargetsButton.Name = "ClearTargetsButton"; clearTargetsButton.Text = "Clear"; clearTargetsButton.BackgroundColor3 = veryDarkBlueButtonColor
+clearTargetsButton.TextColor3 = textColor; styleFunctionButton(clearTargetsButton)
+clearTargetsButton.Size = UDim2.new(controlWidthScale * 0.23, 0, controlHeightScale, 0)
+clearTargetsButton.Position = UDim2.new(controlXPosScale + controlWidthScale * 0.73 + controlWidthScale * 0.04, 0, s1_controlStartY, 0)
+clearTargetsButton.Parent = killerSectionFrame
+
+s1_controlStartY = s1_controlStartY + controlHeightScale + controlSpacingScale
+local autoKillButton = Instance.new("TextButton")
+autoKillButton.Name = "AutoKillButton"; autoKillButton.Text = "Start Auto Kill"; autoKillButton.BackgroundColor3 = veryDarkBlueButtonColor
+autoKillButton.TextColor3 = textColor; styleFunctionButton(autoKillButton)
+autoKillButton.Size = UDim2.new(controlWidthScale*0.48,0,controlHeightScale,0)
+autoKillButton.Position = UDim2.new(controlXPosScale,0,s1_controlStartY,0); autoKillButton.Parent = killerSectionFrame
+
+local stopAutoKillButton = Instance.new("TextButton")
+stopAutoKillButton.Name = "StopAutoKillButton"; stopAutoKillButton.Text = "Stop Auto Kill"; stopAutoKillButton.BackgroundColor3 = veryDarkBlueButtonColor
+stopAutoKillButton.TextColor3 = textColor; styleFunctionButton(stopAutoKillButton)
+stopAutoKillButton.Size = UDim2.new(controlWidthScale*0.48,0,controlHeightScale,0)
+stopAutoKillButton.Position = UDim2.new(controlXPosScale + controlWidthScale*0.48 + controlWidthScale*0.04,0,s1_controlStartY,0)
+stopAutoKillButton.Parent = killerSectionFrame
+
+s1_controlStartY = s1_controlStartY + controlHeightScale + controlSpacingScale
+local autoKillAllButton = Instance.new("TextButton")
+autoKillAllButton.Name = "AutoKillAllButton"; autoKillAllButton.Text = "Auto Kill ALL"; autoKillAllButton.BackgroundColor3 = veryDarkBlueButtonColor
+autoKillAllButton.TextColor3 = textColor; styleFunctionButton(autoKillAllButton)
+autoKillAllButton.Size = UDim2.new(controlWidthScale*0.48,0,controlHeightScale,0)
+autoKillAllButton.Position = UDim2.new(controlXPosScale,0,s1_controlStartY,0); autoKillAllButton.Parent = killerSectionFrame
+
+local stopAutoKillAllButton = Instance.new("TextButton")
+stopAutoKillAllButton.Name = "StopAutoKillAllButton"; stopAutoKillAllButton.Text = "Stop Kill ALL"; stopAutoKillAllButton.BackgroundColor3 = veryDarkBlueButtonColor
+stopAutoKillAllButton.TextColor3 = textColor; styleFunctionButton(stopAutoKillAllButton)
+stopAutoKillAllButton.Size = UDim2.new(controlWidthScale*0.48,0,controlHeightScale,0)
+stopAutoKillAllButton.Position = UDim2.new(controlXPosScale + controlWidthScale*0.48 + controlWidthScale*0.04,0,s1_controlStartY,0)
+stopAutoKillAllButton.Parent = killerSectionFrame
+
+s1_controlStartY = s1_controlStartY + controlHeightScale + controlSpacingScale * 1.3
+local playerListLabel = Instance.new("TextLabel")
+playerListLabel.Name = "PlayerListLabel"; playerListLabel.Text = "Player"
+playerListLabel.TextColor3 = textColor
+playerListLabel.Font = Enum.Font.GothamSemibold; playerListLabel.TextScaled = true; playerListLabel.BackgroundTransparency = 1
+playerListLabel.Size = UDim2.new(controlWidthScale,0,controlHeightScale * 0.55,0)
+playerListLabel.Position = UDim2.new(controlXPosScale,0,s1_controlStartY,0)
+playerListLabel.Parent = killerSectionFrame
+
+s1_controlStartY = s1_controlStartY + (controlHeightScale * 0.55) + (controlSpacingScale * 0.2)
+local scrollingPlayersFrame = Instance.new("ScrollingFrame")
+scrollingPlayersFrame.Name = "ScrollingPlayersFrame"; scrollingPlayersFrame.BackgroundColor3 = Color3.fromRGB(40,45,55)
+scrollingPlayersFrame.BorderColor3 = buttonBorderColor; scrollingPlayersFrame.BorderSizePixel = 1
+local s1_remainingHeightScale = 1 - s1_controlStartY - 0.04
+scrollingPlayersFrame.Size = UDim2.new(controlWidthScale,0,s1_remainingHeightScale,0)
+scrollingPlayersFrame.Position = UDim2.new(controlXPosScale,0,s1_controlStartY,0)
+scrollingPlayersFrame.CanvasSize = UDim2.new(0,0,0,0); scrollingPlayersFrame.ScrollBarThickness = 5; scrollingPlayersFrame.Parent = killerSectionFrame
+
+local playerListLayout = Instance.new("UIListLayout")
+playerListLayout.Padding = UDim.new(0,3); playerListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+playerListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center; playerListLayout.Parent = scrollingPlayersFrame
+
+-- SECTION 2 FRAME: KILLER 2
+local killer2SectionFrame = Instance.new("Frame")
+killer2SectionFrame.Name = "Killer2SectionFrame"; killer2SectionFrame.BackgroundTransparency = 1
+killer2SectionFrame.Size = UDim2.new(1, 0, 1, 0); killer2SectionFrame.Position = UDim2.new(0, 0, 0, 0)
+killer2SectionFrame.Visible = false; killer2SectionFrame.Parent = sectionsContainerFrame
+local s2_controlStartY = 0.05
+
+local whitelistLabel = Instance.new("TextLabel")
+whitelistLabel.Name = "WhitelistLabel"; whitelistLabel.Text = "Whitelist (AutoKillAll/Aura):"; whitelistLabel.TextColor3 = textColor
+whitelistLabel.Font = Enum.Font.Gotham; whitelistLabel.TextScaled = true; whitelistLabel.BackgroundTransparency = 1
+whitelistLabel.TextXAlignment = Enum.TextXAlignment.Left
+whitelistLabel.Size = UDim2.new(controlWidthScale, 0, controlHeightScale * 0.7, 0)
+whitelistLabel.Position = UDim2.new(controlXPosScale, 0, s2_controlStartY, 0)
+whitelistLabel.Parent = killer2SectionFrame
+
+s2_controlStartY = s2_controlStartY + (controlHeightScale * 0.7) + (controlSpacingScale * 0.05)
+local whitelistTextBox = Instance.new("TextBox")
+whitelistTextBox.Name = "WhitelistTextBox"; whitelistTextBox.PlaceholderText = "User1,User2,... (No spaces)"
+whitelistTextBox.Text = ""
+whitelistTextBox.BackgroundColor3 = Color3.fromRGB(40,45,55); whitelistTextBox.TextColor3 = textColor; whitelistTextBox.Font = Enum.Font.Gotham
+whitelistTextBox.TextScaled = true; whitelistTextBox.ClearTextOnFocus = false
+whitelistTextBox.BorderSizePixel = buttonBorderSize; whitelistTextBox.BorderColor3 = buttonBorderColor
+whitelistTextBox.Size = UDim2.new(controlWidthScale, 0, controlHeightScale, 0)
+whitelistTextBox.Position = UDim2.new(controlXPosScale,0,s2_controlStartY,0)
+whitelistTextBox.Parent = killer2SectionFrame
+
+s2_controlStartY = s2_controlStartY + controlHeightScale + controlSpacingScale
+
+local disablePunchAnimButton = Instance.new("TextButton")
+disablePunchAnimButton.Name = "DisablePunchAnimButton"; disablePunchAnimButton.Text = "Dis Punch Anim"; disablePunchAnimButton.BackgroundColor3 = veryDarkBlueButtonColor
+disablePunchAnimButton.TextColor3 = textColor; styleFunctionButton(disablePunchAnimButton)
+disablePunchAnimButton.Size = UDim2.new(controlWidthScale*0.48,0,controlHeightScale,0)
+disablePunchAnimButton.Position = UDim2.new(controlXPosScale,0,s2_controlStartY,0); disablePunchAnimButton.Parent = killer2SectionFrame
+
+local enablePunchAnimButton = Instance.new("TextButton")
+enablePunchAnimButton.Name = "EnablePunchAnimButton"; enablePunchAnimButton.Text = "En Punch Anim"; enablePunchAnimButton.BackgroundColor3 = veryDarkBlueButtonColor
+enablePunchAnimButton.TextColor3 = textColor; styleFunctionButton(enablePunchAnimButton)
+enablePunchAnimButton.Size = UDim2.new(controlWidthScale*0.48,0,controlHeightScale,0)
+enablePunchAnimButton.Position = UDim2.new(controlXPosScale + controlWidthScale*0.48 + controlWidthScale*0.04,0,s2_controlStartY,0)
+enablePunchAnimButton.Parent = killer2SectionFrame
+
+s2_controlStartY = s2_controlStartY + controlHeightScale + controlSpacingScale
+local autoEquipPunchButton = Instance.new("TextButton")
+autoEquipPunchButton.Name = "AutoEquipPunchButton"; autoEquipPunchButton.Text = "Auto Equip: OFF"; autoEquipPunchButton.BackgroundColor3 = veryDarkBlueButtonColor
+autoEquipPunchButton.TextColor3 = textColor; styleFunctionButton(autoEquipPunchButton)
+autoEquipPunchButton.Size = UDim2.new(controlWidthScale*0.48,0,controlHeightScale,0)
+autoEquipPunchButton.Position = UDim2.new(controlXPosScale,0,s2_controlStartY,0); autoEquipPunchButton.Parent = killer2SectionFrame
+
+local autoPunchButton = Instance.new("TextButton")
+autoPunchButton.Name = "AutoPunchButton"; autoPunchButton.Text = "Auto Punch: OFF"; autoPunchButton.BackgroundColor3 = veryDarkBlueButtonColor
+autoPunchButton.TextColor3 = textColor; styleFunctionButton(autoPunchButton)
+autoPunchButton.Size = UDim2.new(controlWidthScale*0.48,0,controlHeightScale,0)
+autoPunchButton.Position = UDim2.new(controlXPosScale + controlWidthScale*0.48 + controlWidthScale*0.04,0,s2_controlStartY,0)
+autoPunchButton.Parent = killer2SectionFrame
+
+s2_controlStartY = s2_controlStartY + controlHeightScale + controlSpacingScale
+local killAuraToggleButton = Instance.new("TextButton")
+killAuraToggleButton.Name = "KillAuraToggleButton"; killAuraToggleButton.Text = "Kill Aura: OFF"; killAuraToggleButton.BackgroundColor3 = veryDarkBlueButtonColor
+killAuraToggleButton.TextColor3 = textColor; styleFunctionButton(killAuraToggleButton)
+killAuraToggleButton.Size = UDim2.new(controlWidthScale*0.48,0,controlHeightScale,0)
+killAuraToggleButton.Position = UDim2.new(controlXPosScale,0,s2_controlStartY,0); killAuraToggleButton.Parent = killer2SectionFrame
+
+local killAuraRadiusTextBox = Instance.new("TextBox")
+killAuraRadiusTextBox.Name = "KillAuraRadiusTextBox"; killAuraRadiusTextBox.PlaceholderText = "Radius (e.g. 15)"; killAuraRadiusTextBox.Text = "15"
+killAuraRadiusTextBox.BackgroundColor3 = Color3.fromRGB(40,45,55); killAuraRadiusTextBox.TextColor3 = textColor; killAuraRadiusTextBox.Font = Enum.Font.Gotham
+killAuraRadiusTextBox.TextScaled = true; killAuraRadiusTextBox.ClearTextOnFocus = false
+killAuraRadiusTextBox.BorderSizePixel = buttonBorderSize; killAuraRadiusTextBox.BorderColor3 = buttonBorderColor
+killAuraRadiusTextBox.Size = UDim2.new(controlWidthScale*0.48,0,controlHeightScale,0)
+killAuraRadiusTextBox.Position = UDim2.new(controlXPosScale + controlWidthScale*0.48 + controlWidthScale*0.04,0,s2_controlStartY,0)
+killAuraRadiusTextBox.Parent = killer2SectionFrame
+
+s2_controlStartY = s2_controlStartY + controlHeightScale + controlSpacingScale
+local antiKnockbackButton = Instance.new("TextButton")
+antiKnockbackButton.Name = "AntiKnockbackButton"; antiKnockbackButton.Text = "Anti-Knockback: OFF";
+antiKnockbackButton.BackgroundColor3 = veryDarkBlueButtonColor
+antiKnockbackButton.TextColor3 = textColor; styleFunctionButton(antiKnockbackButton)
+antiKnockbackButton.Size = UDim2.new(controlWidthScale,0,controlHeightScale,0)
+antiKnockbackButton.Position = UDim2.new(controlXPosScale,0,s2_controlStartY,0)
+antiKnockbackButton.Parent = killer2SectionFrame
+
+
+-- Player Frame Template
+local playerFrameTemplate = Instance.new("Frame")
+playerFrameTemplate.Name = "PlayerFrameTemplate"; playerFrameTemplate.Size = UDim2.new(0.95,0,0,28)
+playerFrameTemplate.BackgroundColor3 = Color3.fromRGB(50,55,65); playerFrameTemplate.BorderSizePixel = 0
+local playerImage = Instance.new("ImageLabel"); playerImage.Name = "PlayerImage"; playerImage.Size = UDim2.new(0,22,0,22)
+playerImage.Position = UDim2.new(0,4,0.5,-11); playerImage.BackgroundTransparency = 1; playerImage.Parent = playerFrameTemplate
+local playerNameLabel = Instance.new("TextLabel"); playerNameLabel.Name = "PlayerNameLabel"; playerNameLabel.Size = UDim2.new(0.40,0,0.8,0)
+playerNameLabel.Position = UDim2.new(0,29,0.1,0); playerNa
